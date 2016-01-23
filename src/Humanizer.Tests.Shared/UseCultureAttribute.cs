@@ -23,6 +23,51 @@ namespace Humanizer.Tests
         CultureInfo originalCulture;
         CultureInfo originalUICulture;
 
+        [ThreadStatic]
+        static CultureInfo nullCulture;
+
+        [ThreadStatic]
+        static CultureInfo nullUICulture;
+
+        static readonly AsyncLocal<CultureInfo> currentCultureFlowing = new AsyncLocal<CultureInfo>(
+            args =>
+            {
+                if (args.PreviousValue == null)
+                {
+                    nullCulture = CultureInfo.CurrentCulture;
+                }
+
+                if (args.CurrentValue == null)
+                {
+                    CultureInfo.CurrentCulture = nullCulture;
+                    nullCulture = null;
+                }
+                else
+                {
+                    CultureInfo.CurrentCulture = args.CurrentValue;
+                }
+            });
+
+        static readonly AsyncLocal<CultureInfo> currentUICultureFlowing = new AsyncLocal<CultureInfo>(
+            args =>
+            {
+                if (args.PreviousValue == null)
+                {
+                    nullUICulture = CultureInfo.CurrentUICulture;
+                }
+
+                if (args.CurrentValue == null)
+                {
+                    CultureInfo.CurrentUICulture = nullUICulture;
+                    nullUICulture = null;
+                }
+                else
+                {
+                    CultureInfo.CurrentUICulture = args.CurrentValue;
+                }
+            });
+
+
 
         /// <summary>
         /// Replaces the culture and UI culture of the current thread with
@@ -54,12 +99,12 @@ namespace Humanizer.Tests
         /// <summary>
         /// Gets the culture.
         /// </summary>
-        public CultureInfo Culture { get { return culture.Value; } }
+        public CultureInfo Culture => culture.Value;
 
         /// <summary>
         /// Gets the UI culture.
         /// </summary>
-        public CultureInfo UICulture { get { return uiCulture.Value; } }
+        public CultureInfo UICulture => uiCulture.Value;
 
         /// <summary>
         /// Stores the current <see cref="CultureInfo.CurrentCulture" />
@@ -73,8 +118,8 @@ namespace Humanizer.Tests
             originalUICulture = CultureInfo.CurrentUICulture;
 
 
-            CultureInfo.CurrentCulture = Culture;
-            CultureInfo.CurrentUICulture = UICulture;
+            currentCultureFlowing.Value = Culture;
+            currentUICultureFlowing.Value = UICulture;
         }
 
         /// <summary>
@@ -84,8 +129,8 @@ namespace Humanizer.Tests
         /// <param name="methodUnderTest">The method under test</param>
         public override void After(MethodInfo methodUnderTest)
         {
-            CultureInfo.CurrentCulture = originalCulture;
-            CultureInfo.CurrentUICulture = originalUICulture;
+            currentCultureFlowing.Value = originalCulture;
+            currentUICultureFlowing.Value = originalUICulture;
         }
     }
 
